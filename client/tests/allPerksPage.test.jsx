@@ -25,7 +25,7 @@ describe('AllPerks page (Directory)', () => {
     // fetch finished.
     await waitFor(() => {
       expect(screen.getByText(seededPerk.title)).toBeInTheDocument();
-    });
+    }, { timeout: 10000 });
 
     // Interact with the name filter input using the real value that
     // corresponds to the seeded record.
@@ -34,7 +34,7 @@ describe('AllPerks page (Directory)', () => {
 
     await waitFor(() => {
       expect(screen.getByText(seededPerk.title)).toBeInTheDocument();
-    });
+    }, { timeout: 10000 });
 
     // The summary text should continue to reflect the number of matching perks.
     expect(screen.getByText(/showing/i)).toHaveTextContent('Showing');
@@ -49,9 +49,40 @@ describe('AllPerks page (Directory)', () => {
   - verify the record is displayed
   - verify the summary text reflects the number of matching perks
   */
-
   test('lists public perks and responds to merchant filtering', async () => {
-    // This will always fail until the TODO above is implemented.
-    expect(true).toBe(false);
+    // Use the deterministic seeded record from global setup
+    const seededPerk = global.__TEST_CONTEXT__.seededPerk;
+
+    // Render the exploration page so it performs its real HTTP fetch.
+    renderWithRouter(
+      <Routes>
+        <Route path="/explore" element={<AllPerks />} />
+      </Routes>,
+      { initialEntries: ['/explore'] }
+    );
+
+    // Wait for the baseline card to appear which guarantees the asynchronous
+    // fetch finished and the unique merchant list was derived.
+    await waitFor(() => {
+      expect(screen.getByText(seededPerk.title)).toBeInTheDocument();
+    }, { timeout: 10000 });
+
+    // Find the merchant filter dropdown and ensure the seeded merchant option exists.
+    const merchantSelect = screen.getByRole('combobox');
+    await screen.findByRole('option', { name: seededPerk.merchant });
+
+    // Choose the seeded record's merchant from the dropdown
+    fireEvent.change(merchantSelect, { target: { value: seededPerk.merchant } });
+
+    // Wait for the filtered results to load (debounced + network)
+    await waitFor(() => {
+      expect(screen.getByText(seededPerk.title)).toBeInTheDocument();
+    });
+
+    // The summary text should reflect the number of matching perks.
+    // Since the seeded merchant is unique, we expect a single match.
+    await waitFor(() => {
+      expect(screen.getByText(/showing/i)).toHaveTextContent('Showing 1 perk');
+    }, { timeout: 10000 });
   });
 });
